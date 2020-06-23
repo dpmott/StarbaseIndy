@@ -1,0 +1,29 @@
+{
+  "name": "github-scripting",
+  "version": "1.0.0",
+  "description": "Cloud-hosted KonOpas metadata generator. Be sure to set the AWS_PROFILE env variable properly.",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "build": "cd konopas-publish && sam build",
+    "prepack": "npm run build",
+    "pack": "cd konopas-publish && sam package --output-template-file packaged.yaml --s3-bucket %S3_BUCKET%",
+    "predeploy": "npm run pack",
+    "deploy": "cd konopas-publish && sam deploy --template-file packaged.yaml --region us-east-1 --capabilities CAPABILITY_IAM --stack-name konopas-deploy",
+    "view-stack": "aws cloudformation describe-stacks --stack-name konopas-deploy --region us-east-1 --query \"Stacks[].Outputs\"",
+    "delete-stack": "aws cloudformation delete-stack --stack-name konopas-deploy",
+    "view-bucket": "aws s3 ls s3://%S3_BUCKET%",
+    "prestart-local": "cd konopas-publish/src && npm install",
+    "start-local": "cd konopas-publish && sam local start-api --profile dpmott --env-vars local-env.json --template template.yaml",
+    "lint": "eslint .",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "dpmott@gmail.com",
+  "license": "MIT",
+  "dependencies": {
+    "@hapi/wreck": "^16.0.1"
+  },
+  "devDependencies": {
+    "eslint": "^6.8.0"
+  }
+}
