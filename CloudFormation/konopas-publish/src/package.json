@@ -1,5 +1,5 @@
 {
-  "name": "knoopas-publish",
+  "name": "konopas-publish",
   "version": "1.0.0",
   "description": "AWS SAM deployment of KonOpas metadata generator. Be sure to set the AWS_PROFILE env variable properly.",
   "main": "app.js",

@@ -1,7 +1,7 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 Description: >
-  knoopas-publish
+  konopas-publish
 
   AWS SAM deployment for automating KonOpas metadata generation in github repositories
   
@@ -11,6 +11,19 @@ Globals:
     Timeout: 30
 
 Resources:
+  HealthCheckFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./src
+      Handler: healthcheck.lambdaHandler
+      Runtime: nodejs10.x
+      Events:
+        Publish:
+          Type: Api
+          Properties:
+            Path: /healthcheck
+            Method: get
+
   PublishFunction:
     Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
     Properties:
