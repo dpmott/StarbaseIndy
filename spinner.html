@@ -1,0 +1,1663 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Offline Spin Wheel</title>
+    <style>
+:root {
+    color-scheme: light;
+    --bg: #f3efe3;
+    --bg-accent: #ead3a1;
+    --panel: rgba(255, 252, 245, 0.82);
+    --panel-strong: rgba(255, 250, 239, 0.95);
+    --text: #1f1b17;
+    --muted: #6a5d4a;
+    --line: rgba(71, 58, 39, 0.16);
+    --primary: #1b6a64;
+    --primary-strong: #0f4d48;
+    --accent: #cc5f37;
+    --accent-strong: #a94724;
+    --shadow: 0 24px 50px rgba(69, 48, 21, 0.14);
+    --radius-xl: 28px;
+    --radius-lg: 18px;
+    --radius-md: 12px;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    min-height: 100vh;
+    font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+    color: var(--text);
+    background:
+        radial-gradient(circle at top left, rgba(255, 255, 255, 0.7), transparent 32%),
+        radial-gradient(circle at bottom right, rgba(204, 95, 55, 0.18), transparent 28%),
+        linear-gradient(135deg, var(--bg) 0%, #f8f4ea 52%, #f0e1bd 100%);
+}
+
+body::before,
+body::after {
+    content: "";
+    position: fixed;
+    inset: auto;
+    width: 320px;
+    height: 320px;
+    border-radius: 50%;
+    pointer-events: none;
+    filter: blur(10px);
+    opacity: 0.25;
+}
+
+body::before {
+    top: -110px;
+    right: -90px;
+    background: radial-gradient(circle, rgba(27, 106, 100, 0.38), transparent 70%);
+}
+
+body::after {
+    bottom: -120px;
+    left: -80px;
+    background: radial-gradient(circle, rgba(204, 95, 55, 0.4), transparent 70%);
+}
+
+.app-shell {
+    width: min(1240px, calc(100% - 32px));
+    margin: 0 auto;
+    padding: 28px 0 36px;
+    display: grid;
+    gap: 24px;
+    grid-template-columns: minmax(320px, 440px) minmax(360px, 1fr);
+}
+
+.panel {
+    position: relative;
+    overflow: hidden;
+    background: var(--panel);
+    border: 1px solid rgba(255, 255, 255, 0.55);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow);
+    backdrop-filter: blur(18px);
+}
+
+.panel::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.24), rgba(255, 255, 255, 0));
+    pointer-events: none;
+}
+
+.panel-controls,
+.panel-wheel {
+    padding: 28px;
+}
+
+.panel-header {
+    margin-bottom: 24px;
+}
+
+.eyebrow {
+    margin: 0 0 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    font-size: 0.72rem;
+    color: var(--muted);
+}
+
+h1,
+h2 {
+    margin: 0;
+    line-height: 1.05;
+}
+
+h1 {
+    font-size: clamp(2.1rem, 3vw, 3.2rem);
+}
+
+h2 {
+    font-size: clamp(1.5rem, 2.5vw, 2.2rem);
+}
+
+.intro,
+.meta,
+.status-text,
+.empty-state,
+.result-label {
+    color: var(--muted);
+}
+
+.intro {
+    margin: 14px 0 0;
+    line-height: 1.55;
+}
+
+.option-form {
+    display: grid;
+    grid-template-columns: minmax(0, 1.6fr) minmax(110px, 0.65fr) auto;
+    gap: 14px;
+    align-items: end;
+}
+
+.field-group {
+    display: grid;
+    gap: 8px;
+}
+
+.field-group-full {
+    grid-column: 1 / -1;
+}
+
+label {
+    font-size: 0.92rem;
+    font-weight: 600;
+}
+
+input {
+    width: 100%;
+    padding: 12px 14px;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--line);
+    background: rgba(255, 255, 255, 0.85);
+    color: var(--text);
+    font: inherit;
+}
+
+input:focus {
+    outline: 2px solid rgba(27, 106, 100, 0.2);
+    border-color: rgba(27, 106, 100, 0.4);
+}
+
+.toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin: 18px 0 22px;
+}
+
+.compact-toolbar {
+    margin: 0 0 20px;
+}
+
+.dialog-toolbar {
+    margin-bottom: 0;
+}
+
+.button {
+    appearance: none;
+    border: 0;
+    border-radius: 999px;
+    padding: 12px 18px;
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform 140ms ease, box-shadow 140ms ease, background 140ms ease, opacity 140ms ease;
+}
+
+.button:hover:not(:disabled) {
+    transform: translateY(-1px);
+}
+
+.button:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+}
+
+.button-primary {
+    background: var(--primary);
+    color: #f9f4ea;
+    box-shadow: 0 10px 18px rgba(27, 106, 100, 0.22);
+}
+
+.button-secondary {
+    background: rgba(27, 106, 100, 0.14);
+    color: var(--primary-strong);
+}
+
+.button-ghost {
+    background: rgba(31, 27, 23, 0.06);
+    color: var(--text);
+}
+
+.button-spin {
+    background: linear-gradient(135deg, var(--accent) 0%, #d98244 100%);
+    color: #fff5ef;
+    box-shadow: 0 14px 28px rgba(204, 95, 55, 0.28);
+    min-width: 160px;
+}
+
+.button-spin.charging {
+    transform: translateY(-1px) scale(1.02);
+    box-shadow: 0 18px 34px rgba(204, 95, 55, 0.36), 0 0 0 6px rgba(255, 210, 153, 0.22);
+}
+
+.option-list-card,
+.result-card,
+.summary-card {
+    background: var(--panel-strong);
+    border: 1px solid rgba(255, 255, 255, 0.62);
+    border-radius: var(--radius-lg);
+    padding: 18px;
+}
+
+.summary-card {
+    display: grid;
+    gap: 10px;
+}
+
+.summary-card h2,
+.option-list-header h2 {
+    font-size: 1.2rem;
+}
+
+.summary-copy {
+    margin: 0;
+    line-height: 1.45;
+    color: var(--text);
+}
+
+.summary-copy-quiet,
+.meta {
+    color: var(--muted);
+}
+
+.meta {
+    margin: 0;
+    font-size: 0.92rem;
+}
+
+.option-list-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 16px;
+}
+
+.option-table-head,
+.option-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1.8fr) minmax(100px, 0.7fr) 56px;
+    gap: 12px;
+    align-items: center;
+}
+
+.option-table-head {
+    margin-top: 16px;
+    padding: 0 12px;
+    font-size: 0.84rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+}
+
+.option-list {
+    display: grid;
+    gap: 10px;
+    margin-top: 12px;
+}
+
+.option-row {
+    padding: 12px;
+    border-radius: var(--radius-md);
+    background: rgba(255, 255, 255, 0.72);
+    border: 1px solid rgba(71, 58, 39, 0.08);
+}
+
+.option-row input {
+    padding: 10px 12px;
+}
+
+.remove-button {
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    border-radius: 14px;
+    background: rgba(204, 95, 55, 0.12);
+    color: var(--accent-strong);
+    font-size: 1.15rem;
+    line-height: 1;
+}
+
+.empty-state {
+    margin: 14px 0 0;
+    padding: 14px;
+    border-radius: var(--radius-md);
+    background: rgba(31, 27, 23, 0.04);
+}
+
+.panel-wheel {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+}
+
+.wheel-header {
+    width: 100%;
+    text-align: center;
+}
+
+.wheel-wrap {
+    position: relative;
+    width: min(100%, 680px);
+    aspect-ratio: 1;
+    margin-top: 8px;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    cursor: default;
+}
+
+.wheel-wrap.can-spin {
+    cursor: pointer;
+}
+
+.wheel-wrap.charging {
+    cursor: grabbing;
+}
+
+.wheel-wrap.charging #wheel-canvas {
+    filter: drop-shadow(0 24px 36px rgba(204, 95, 55, 0.22));
+}
+
+.wheel-wrap:focus-visible {
+    outline: 4px solid rgba(27, 106, 100, 0.28);
+    outline-offset: 12px;
+}
+
+.dialog-panel {
+    width: min(760px, calc(100% - 24px));
+    max-height: calc(100vh - 28px);
+    padding: 0;
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    border-radius: var(--radius-xl);
+    background: rgba(255, 250, 240, 0.97);
+    color: var(--text);
+    box-shadow: 0 28px 70px rgba(51, 34, 12, 0.28);
+    overflow: hidden;
+}
+
+.dialog-panel::backdrop {
+    background: rgba(33, 23, 11, 0.36);
+    backdrop-filter: blur(6px);
+}
+
+.dialog-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 18px;
+    padding: 24px 24px 16px;
+    border-bottom: 1px solid rgba(71, 58, 39, 0.08);
+}
+
+.dialog-body {
+    max-height: calc(100vh - 180px);
+    overflow: auto;
+    padding: 20px 24px 24px;
+}
+
+.settings-form {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+    margin-top: 18px;
+}
+
+.pointer {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translate(-50%, -12%);
+    width: 0;
+    height: 0;
+    border-left: 24px solid transparent;
+    border-right: 24px solid transparent;
+    border-top: 52px solid var(--accent);
+    filter: drop-shadow(0 12px 18px rgba(93, 44, 17, 0.2));
+    z-index: 3;
+}
+
+#wheel-canvas {
+    width: min(100%, 640px);
+    height: auto;
+    display: block;
+    filter: drop-shadow(0 20px 30px rgba(55, 43, 20, 0.16));
+}
+
+.hub {
+    position: absolute;
+    width: 76px;
+    height: 76px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 32% 30%, #fff8ea, #d7b777 72%, #bb8c39 100%);
+    box-shadow: inset 0 3px 10px rgba(255, 255, 255, 0.45), 0 8px 18px rgba(92, 67, 32, 0.18);
+}
+
+.status-text {
+    margin: 18px 0 14px;
+    min-height: 1.4em;
+}
+
+.result-card {
+    width: min(100%, 420px);
+    text-align: center;
+}
+
+.result-label {
+    margin: 0;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    font-size: 0.78rem;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    margin-top: 14px;
+    text-align: left;
+}
+
+.stat-tile {
+    padding: 14px;
+    border-radius: var(--radius-md);
+    background: rgba(255, 255, 255, 0.7);
+    border: 1px solid rgba(71, 58, 39, 0.08);
+}
+
+.stat-tile-wide {
+    grid-column: 1 / -1;
+}
+
+.stat-label {
+    margin: 0 0 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-size: 0.76rem;
+    color: var(--muted);
+}
+
+.stat-value {
+    margin: 0;
+    font-size: clamp(1.1rem, 2vw, 1.5rem);
+    font-weight: 800;
+    line-height: 1.2;
+}
+
+@media (max-width: 980px) {
+    .app-shell {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 700px) {
+    .app-shell {
+        width: min(100% - 18px, 100%);
+        padding-top: 12px;
+    }
+
+    .panel-controls,
+    .panel-wheel {
+        padding: 20px;
+    }
+
+    .option-form,
+    .settings-form {
+        grid-template-columns: 1fr;
+    }
+
+    .stats-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .dialog-header,
+    .dialog-body {
+        padding-left: 18px;
+        padding-right: 18px;
+    }
+
+    .option-table-head {
+        display: none;
+    }
+
+    .option-row {
+        grid-template-columns: 1fr;
+    }
+
+    .remove-button {
+        width: 100%;
+    }
+}
+</style>
+</head>
+<body>
+    <main class="app-shell">
+        <section class="panel panel-controls" aria-labelledby="controls-heading">
+            <div class="panel-header">
+                <p class="eyebrow">Weighted Option Builder</p>
+                <h1 id="controls-heading">Spin To Win Wheel</h1>
+                <p class="intro">
+                    Build an offline wheel with weighted entries. Higher weights give an option a larger slice,
+                    making it appear more often over many spins.
+                </p>
+            </div>
+
+            <div class="toolbar compact-toolbar" role="group" aria-label="Configuration dialogs">
+                <button id="open-options-dialog" type="button" class="button button-primary">Edit Labels</button>
+                <button id="open-settings-dialog" type="button" class="button button-secondary">Spin Settings</button>
+            </div>
+
+            <section class="summary-card" aria-labelledby="summary-heading">
+                <h2 id="summary-heading">Current setup</h2>
+                <p id="config-summary-text" class="summary-copy"></p>
+                <p id="settings-summary-text" class="summary-copy summary-copy-quiet"></p>
+                <p class="summary-copy summary-copy-quiet">
+                    Use the dialogs to adjust labels, weights, and spin feel without leaving the wheel view.
+                </p>
+            </section>
+        </section>
+
+        <section class="panel panel-wheel" aria-labelledby="wheel-heading">
+            <div class="panel-header wheel-header">
+                <p class="eyebrow">Live Preview</p>
+                <h2 id="wheel-heading">Spin the wheel</h2>
+            </div>
+
+            <div id="wheel-trigger" class="wheel-wrap" role="button" tabindex="0" aria-label="Spin the wheel">
+                <div class="pointer" aria-hidden="true"></div>
+                <canvas id="wheel-canvas" width="640" height="640" aria-label="Weighted spin wheel"></canvas>
+                <div class="hub" aria-hidden="true"></div>
+            </div>
+
+            <button id="spin-button" type="button" class="button button-spin">Spin</button>
+            <p id="status-text" class="status-text">Add options to begin.</p>
+            <section class="result-card" aria-labelledby="result-heading">
+                <p class="result-label" id="result-heading">Spin Statistics</p>
+                <div class="stats-grid" aria-live="polite">
+                    <div class="stat-tile">
+                        <p class="stat-label">Total spins</p>
+                        <p id="stats-total-spins" class="stat-value">0</p>
+                    </div>
+                    <div class="stat-tile">
+                        <p class="stat-label">Last winner</p>
+                        <p id="result-text" class="stat-value">None yet</p>
+                    </div>
+                    <div class="stat-tile stat-tile-wide">
+                        <p class="stat-label">Most frequent</p>
+                        <p id="stats-top-winner" class="stat-value">None yet</p>
+                    </div>
+                </div>
+            </section>
+        </section>
+    </main>
+
+    <dialog id="options-dialog" class="dialog-panel" aria-labelledby="options-dialog-heading">
+        <div class="dialog-header">
+            <div>
+                <p class="eyebrow">Labels And Weights</p>
+                <h2 id="options-dialog-heading">Edit wheel labels</h2>
+            </div>
+            <button id="close-options-dialog" type="button" class="button button-ghost">Close</button>
+        </div>
+        <div class="dialog-body">
+            <form id="add-option-form" class="option-form">
+                <div class="field-group">
+                    <label for="option-label">Option label</label>
+                    <input id="option-label" name="label" type="text" maxlength="40" placeholder="Add an option" required>
+                </div>
+                <div class="field-group weight-field">
+                    <label for="option-weight">Weight</label>
+                    <input id="option-weight" name="weight" type="number" min="0.01" step="any" value="1" required>
+                </div>
+                <button type="submit" class="button button-primary">Add option</button>
+            </form>
+
+            <div class="toolbar" role="group" aria-label="Option controls">
+                <button id="reset-sample" type="button" class="button button-secondary">Reset sample data</button>
+                <button id="clear-options" type="button" class="button button-ghost">Clear all</button>
+            </div>
+
+            <section class="option-list-card" aria-labelledby="current-options-heading">
+                <div class="option-list-header">
+                    <h2 id="current-options-heading">Current options</h2>
+                    <p id="slice-summary" class="meta"></p>
+                </div>
+                <div class="option-table-head" aria-hidden="true">
+                    <span>Label</span>
+                    <span>Weight</span>
+                    <span>Remove</span>
+                </div>
+                <div id="option-list" class="option-list"></div>
+                <p id="empty-state" class="empty-state" hidden>Add at least one option to enable the wheel.</p>
+            </section>
+        </div>
+    </dialog>
+
+    <dialog id="settings-dialog" class="dialog-panel" aria-labelledby="settings-dialog-heading">
+        <div class="dialog-header">
+            <div>
+                <p class="eyebrow">Spin Tuning</p>
+                <h2 id="settings-dialog-heading">Spin settings</h2>
+            </div>
+            <button id="close-settings-dialog" type="button" class="button button-ghost">Close</button>
+        </div>
+        <div class="dialog-body">
+            <p class="summary-copy summary-copy-quiet">
+                Changes apply to the next spin. These settings are saved locally in your browser.
+            </p>
+            <form id="settings-form" class="settings-form">
+                <div class="field-group">
+                    <label for="setting-max-charge-ms">Max charge time (ms)</label>
+                    <input id="setting-max-charge-ms" name="maxChargeMs" type="number" min="100" step="10" required>
+                </div>
+                <div class="field-group">
+                    <label for="setting-max-charge-boost">Max charge boost</label>
+                    <input id="setting-max-charge-boost" name="maxChargeBoost" type="number" min="0" step="0.1" required>
+                </div>
+                <div class="field-group">
+                    <label for="setting-min-base-velocity">Min base velocity</label>
+                    <input id="setting-min-base-velocity" name="minBaseVelocity" type="number" min="0.1" step="0.1" required>
+                </div>
+                <div class="field-group">
+                    <label for="setting-base-velocity-range">Base velocity range</label>
+                    <input id="setting-base-velocity-range" name="baseVelocityRange" type="number" min="0" step="0.1" required>
+                </div>
+                <div class="field-group">
+                    <label for="setting-min-base-deceleration">Min base deceleration</label>
+                    <input id="setting-min-base-deceleration" name="minBaseDeceleration" type="number" min="0.1" step="0.05" required>
+                </div>
+                <div class="field-group">
+                    <label for="setting-base-deceleration-range">Base deceleration range</label>
+                    <input id="setting-base-deceleration-range" name="baseDecelerationRange" type="number" min="0" step="0.05" required>
+                </div>
+                <div class="field-group">
+                    <label for="setting-low-speed-friction-floor">Low-speed friction floor</label>
+                    <input id="setting-low-speed-friction-floor" name="lowSpeedFrictionFloor" type="number" min="0.01" max="0.95" step="0.01" required>
+                </div>
+                <div class="field-group">
+                    <label for="setting-low-speed-friction-exponent">Low-speed friction exponent</label>
+                    <input id="setting-low-speed-friction-exponent" name="lowSpeedFrictionExponent" type="number" min="0.2" step="0.05" required>
+                </div>
+                <div class="field-group field-group-full">
+                    <label for="setting-stop-velocity-threshold">Stop velocity threshold</label>
+                    <input id="setting-stop-velocity-threshold" name="stopVelocityThreshold" type="number" min="0.001" step="0.005" required>
+                </div>
+            </form>
+            <div class="toolbar dialog-toolbar" role="group" aria-label="Settings controls">
+                <button id="reset-settings" type="button" class="button button-secondary">Restore defaults</button>
+            </div>
+        </div>
+    </dialog>
+
+    <script>
+const STORAGE_KEY = "offline-spin-wheel-options";
+const SETTINGS_STORAGE_KEY = "offline-spin-wheel-settings";
+const DEFAULT_OPTIONS = [
+    { id: 1, label: "Movie Night", weight: 1 },
+    { id: 2, label: "Pizza Run", weight: 2 },
+    { id: 3, label: "Board Games", weight: 1 },
+    { id: 4, label: "Mini Golf", weight: 3 }
+];
+const DEFAULT_SPIN_SETTINGS = {
+    maxChargeMs: 1800,
+    maxChargeBoost: 8.5,
+    minBaseVelocity: 10.5,
+    baseVelocityRange: 4.5,
+    minBaseDeceleration: 3.25,
+    baseDecelerationRange: 0.9,
+    lowSpeedFrictionFloor: 0.2,
+    lowSpeedFrictionExponent: 1.35,
+    stopVelocityThreshold: 0.05
+};
+const SLICE_COLORS = [
+    "#1b6a64",
+    "#f0b15d",
+    "#cc5f37",
+    "#6f8151",
+    "#355c7d",
+    "#d46d6d",
+    "#8c6f9c",
+    "#b98b55"
+];
+const FULL_TURN = Math.PI * 2;
+const POINTER_ANGLE = -Math.PI / 2;
+const LABEL_ELLIPSIS = "...";
+
+const canvas = document.getElementById("wheel-canvas");
+const context = canvas.getContext("2d");
+const wheelTrigger = document.getElementById("wheel-trigger");
+const optionsDialog = document.getElementById("options-dialog");
+const settingsDialog = document.getElementById("settings-dialog");
+const openOptionsDialogButton = document.getElementById("open-options-dialog");
+const openSettingsDialogButton = document.getElementById("open-settings-dialog");
+const closeOptionsDialogButton = document.getElementById("close-options-dialog");
+const closeSettingsDialogButton = document.getElementById("close-settings-dialog");
+const addOptionForm = document.getElementById("add-option-form");
+const optionLabelInput = document.getElementById("option-label");
+const optionWeightInput = document.getElementById("option-weight");
+const optionList = document.getElementById("option-list");
+const emptyState = document.getElementById("empty-state");
+const sliceSummary = document.getElementById("slice-summary");
+const configSummaryText = document.getElementById("config-summary-text");
+const settingsSummaryText = document.getElementById("settings-summary-text");
+const addOptionSubmitButton = addOptionForm.querySelector("button[type='submit']");
+const spinButton = document.getElementById("spin-button");
+const statsTotalSpins = document.getElementById("stats-total-spins");
+const statsTopWinner = document.getElementById("stats-top-winner");
+const statusText = document.getElementById("status-text");
+const resultText = document.getElementById("result-text");
+const resetSampleButton = document.getElementById("reset-sample");
+const clearOptionsButton = document.getElementById("clear-options");
+const settingsForm = document.getElementById("settings-form");
+const resetSettingsButton = document.getElementById("reset-settings");
+
+const state = {
+    options: loadOptions(),
+    settings: loadSpinSettings(),
+    slices: [],
+    totalWeight: 0,
+    currentRotation: 0,
+    isSpinning: false,
+    isCharging: false,
+    chargeStartedAt: 0,
+    chargeLevel: 0,
+    chargePointerId: null,
+    chargeFrameId: 0,
+    chargeSource: null,
+    suppressPointerClick: false,
+    latestWinner: "",
+    spinStats: createEmptySpinStats(),
+    highlightedSliceIndex: -1,
+    blinkVisible: false,
+    blinkToken: 0,
+    spinId: 0,
+    nextId: 1
+};
+
+state.nextId = state.options.reduce((maxId, option) => Math.max(maxId, option.id), 0) + 1;
+
+initialize();
+
+function initialize() {
+    addOptionForm.addEventListener("submit", handleAddOption);
+    optionList.addEventListener("input", handleOptionListInput);
+    optionList.addEventListener("change", handleOptionListChange);
+    optionList.addEventListener("click", handleOptionListClick);
+    spinButton.addEventListener("click", handleSpinClick);
+    wheelTrigger.addEventListener("click", handleSpinClick);
+    spinButton.addEventListener("pointerdown", handleSpinPressStart);
+    wheelTrigger.addEventListener("pointerdown", handleSpinPressStart);
+    wheelTrigger.addEventListener("keydown", handleWheelKeydown);
+    openOptionsDialogButton.addEventListener("click", () => openDialog(optionsDialog));
+    openSettingsDialogButton.addEventListener("click", () => openDialog(settingsDialog));
+    closeOptionsDialogButton.addEventListener("click", () => optionsDialog.close());
+    closeSettingsDialogButton.addEventListener("click", () => settingsDialog.close());
+    settingsForm.addEventListener("change", handleSettingsFormChange);
+    resetSettingsButton.addEventListener("click", handleResetSettings);
+    window.addEventListener("pointerup", handleSpinPressEnd);
+    window.addEventListener("pointercancel", handleSpinPressCancel);
+    resetSampleButton.addEventListener("click", handleResetSample);
+    clearOptionsButton.addEventListener("click", handleClearOptions);
+
+    renderAll();
+}
+
+function loadOptions() {
+    try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (!saved) {
+            return cloneDefaultOptions();
+        }
+
+        const parsed = JSON.parse(saved);
+        if (!Array.isArray(parsed)) {
+            return cloneDefaultOptions();
+        }
+
+        const sanitized = parsed
+            .map((option, index) => sanitizeOption(option, index + 1))
+            .filter(Boolean);
+
+        return sanitized.length > 0 ? sanitized : cloneDefaultOptions();
+    } catch (error) {
+        return cloneDefaultOptions();
+    }
+}
+
+function loadSpinSettings() {
+    try {
+        const saved = localStorage.getItem(SETTINGS_STORAGE_KEY);
+        if (!saved) {
+            return { ...DEFAULT_SPIN_SETTINGS };
+        }
+
+        return sanitizeSpinSettings(JSON.parse(saved));
+    } catch (error) {
+        return { ...DEFAULT_SPIN_SETTINGS };
+    }
+}
+
+function cloneDefaultOptions() {
+    return DEFAULT_OPTIONS.map((option) => ({ ...option }));
+}
+
+function createEmptySpinStats() {
+    return {
+        totalSpins: 0,
+        counts: {}
+    };
+}
+
+function sanitizeOption(option, fallbackId) {
+    if (!option || typeof option !== "object") {
+        return null;
+    }
+
+    const label = typeof option.label === "string" ? option.label.trim() : "";
+    if (!label) {
+        return null;
+    }
+
+    return {
+        id: Number.isInteger(option.id) ? option.id : fallbackId,
+        label,
+        weight: normalizeWeight(option.weight)
+    };
+}
+
+function sanitizeSpinSettings(settings) {
+    const safeSettings = settings && typeof settings === "object" ? settings : {};
+
+    return {
+        maxChargeMs: normalizeSettingValue(safeSettings.maxChargeMs, DEFAULT_SPIN_SETTINGS.maxChargeMs, 100),
+        maxChargeBoost: normalizeSettingValue(safeSettings.maxChargeBoost, DEFAULT_SPIN_SETTINGS.maxChargeBoost, 0),
+        minBaseVelocity: normalizeSettingValue(safeSettings.minBaseVelocity, DEFAULT_SPIN_SETTINGS.minBaseVelocity, 0.1),
+        baseVelocityRange: normalizeSettingValue(safeSettings.baseVelocityRange, DEFAULT_SPIN_SETTINGS.baseVelocityRange, 0),
+        minBaseDeceleration: normalizeSettingValue(safeSettings.minBaseDeceleration, DEFAULT_SPIN_SETTINGS.minBaseDeceleration, 0.1),
+        baseDecelerationRange: normalizeSettingValue(safeSettings.baseDecelerationRange, DEFAULT_SPIN_SETTINGS.baseDecelerationRange, 0),
+        lowSpeedFrictionFloor: clamp(normalizeSettingValue(safeSettings.lowSpeedFrictionFloor, DEFAULT_SPIN_SETTINGS.lowSpeedFrictionFloor, 0.01), 0.01, 0.95),
+        lowSpeedFrictionExponent: normalizeSettingValue(safeSettings.lowSpeedFrictionExponent, DEFAULT_SPIN_SETTINGS.lowSpeedFrictionExponent, 0.2),
+        stopVelocityThreshold: normalizeSettingValue(safeSettings.stopVelocityThreshold, DEFAULT_SPIN_SETTINGS.stopVelocityThreshold, 0.001)
+    };
+}
+
+function normalizeWeight(weightValue) {
+    const parsed = Number.parseFloat(weightValue);
+    if (!Number.isFinite(parsed) || parsed <= 0) {
+        return 1;
+    }
+
+    return parsed;
+}
+
+function normalizeSettingValue(value, fallbackValue, minimumValue) {
+    const parsed = Number.parseFloat(value);
+    if (!Number.isFinite(parsed) || parsed < minimumValue) {
+        return fallbackValue;
+    }
+
+    return parsed;
+}
+
+function clamp(value, minValue, maxValue) {
+    return Math.min(maxValue, Math.max(minValue, value));
+}
+
+function persistOptions() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state.options));
+}
+
+function persistSpinSettings() {
+    localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(state.settings));
+}
+
+function openDialog(dialogElement) {
+    if (dialogElement.open) {
+        return;
+    }
+
+    if (typeof dialogElement.showModal === "function") {
+        dialogElement.showModal();
+        return;
+    }
+
+    dialogElement.setAttribute("open", "open");
+}
+
+function handleAddOption(event) {
+    event.preventDefault();
+
+    const label = optionLabelInput.value.trim();
+    if (!label) {
+        optionLabelInput.focus();
+        return;
+    }
+
+    state.options.push({
+        id: state.nextId,
+        label,
+        weight: normalizeWeight(optionWeightInput.value)
+    });
+    state.nextId += 1;
+    state.latestWinner = "";
+    resetSpinStats();
+
+    optionLabelInput.value = "";
+    optionWeightInput.value = "1";
+
+    renderAll();
+    optionLabelInput.focus();
+}
+
+function handleOptionListInput(event) {
+    const row = event.target.closest("[data-option-id]");
+    if (!row) {
+        return;
+    }
+
+    const optionId = Number.parseInt(row.dataset.optionId, 10);
+    const option = state.options.find((item) => item.id === optionId);
+    if (!option) {
+        return;
+    }
+
+    if (event.target.matches("[data-role='label']")) {
+        option.label = event.target.value;
+        state.latestWinner = "";
+        resetSpinStats();
+        renderAll();
+    }
+}
+
+function handleOptionListChange(event) {
+    const row = event.target.closest("[data-option-id]");
+    if (!row || !event.target.matches("[data-role='weight']")) {
+        return;
+    }
+
+    const optionId = Number.parseInt(row.dataset.optionId, 10);
+    const option = state.options.find((item) => item.id === optionId);
+    if (!option) {
+        return;
+    }
+
+    option.weight = normalizeWeight(event.target.value);
+    state.latestWinner = "";
+    resetSpinStats();
+    renderAll();
+}
+
+function handleOptionListClick(event) {
+    const button = event.target.closest("[data-action='remove']");
+    if (!button) {
+        return;
+    }
+
+    const row = button.closest("[data-option-id]");
+    if (!row) {
+        return;
+    }
+
+    const optionId = Number.parseInt(row.dataset.optionId, 10);
+    state.options = state.options.filter((option) => option.id !== optionId);
+    state.latestWinner = "";
+    resetSpinStats();
+    renderAll();
+}
+
+function handleSettingsFormChange() {
+    state.settings = sanitizeSpinSettings(Object.fromEntries(new FormData(settingsForm).entries()));
+    renderAll();
+}
+
+function handleResetSample() {
+    state.options = cloneDefaultOptions();
+    state.nextId = state.options.reduce((maxId, option) => Math.max(maxId, option.id), 0) + 1;
+    state.currentRotation = 0;
+    state.latestWinner = "";
+    resetSpinStats();
+    clearWinnerHighlight();
+    renderAll();
+}
+
+function handleClearOptions() {
+    state.options = [];
+    state.currentRotation = 0;
+    state.latestWinner = "";
+    resetSpinStats();
+    clearWinnerHighlight();
+    renderAll();
+}
+
+function handleResetSettings() {
+    state.settings = { ...DEFAULT_SPIN_SETTINGS };
+    renderAll();
+}
+
+function handleWheelKeydown(event) {
+    if (event.key !== "Enter" && event.key !== " ") {
+        return;
+    }
+
+    event.preventDefault();
+    handleSpin();
+}
+
+function handleSpinClick(event) {
+    if (state.suppressPointerClick && event.detail !== 0) {
+        state.suppressPointerClick = false;
+        return;
+    }
+
+    handleSpin();
+}
+
+function handleSpinPressStart(event) {
+    if (event.button !== 0 || state.isSpinning || state.isCharging || state.slices.length === 0) {
+        return;
+    }
+
+    event.preventDefault();
+    state.isCharging = true;
+    state.chargeStartedAt = performance.now();
+    state.chargeLevel = 0;
+    state.chargePointerId = event.pointerId;
+    state.chargeSource = event.currentTarget;
+    state.chargeSource.classList.add("charging");
+    state.suppressPointerClick = false;
+    updateChargeLoop();
+    updateControls();
+}
+
+function handleSpinPressEnd(event) {
+    if (!state.isCharging || event.pointerId !== state.chargePointerId) {
+        return;
+    }
+
+    const launchBoost = finishChargeBuild(true);
+    handleSpin({ launchBoost });
+}
+
+function handleSpinPressCancel(event) {
+    if (!state.isCharging || (event.pointerId != null && event.pointerId !== state.chargePointerId)) {
+        return;
+    }
+
+    finishChargeBuild(false);
+}
+
+function updateChargeLoop() {
+    if (!state.isCharging) {
+        return;
+    }
+
+    syncChargeLevel();
+    renderWheel();
+    updateControls();
+    state.chargeFrameId = window.requestAnimationFrame(updateChargeLoop);
+}
+
+function syncChargeLevel() {
+    if (!state.isCharging) {
+        return;
+    }
+
+    const elapsed = performance.now() - state.chargeStartedAt;
+    state.chargeLevel = Math.max(0, Math.min(elapsed / state.settings.maxChargeMs, 1));
+}
+
+function finishChargeBuild(shouldLaunch) {
+    syncChargeLevel();
+
+    if (state.chargeFrameId) {
+        window.cancelAnimationFrame(state.chargeFrameId);
+    }
+
+    const chargeBoost = state.settings.maxChargeBoost * easeOutQuadratic(state.chargeLevel);
+
+    if (state.chargeSource) {
+        state.chargeSource.classList.remove("charging");
+    }
+
+    state.isCharging = false;
+    state.chargeStartedAt = 0;
+    state.chargePointerId = null;
+    state.chargeFrameId = 0;
+    state.chargeSource = null;
+    state.chargeLevel = 0;
+    state.suppressPointerClick = shouldLaunch;
+    renderWheel();
+    updateControls();
+
+    return chargeBoost;
+}
+
+function renderAll() {
+    syncDerivedWheelData();
+    persistOptions();
+    persistSpinSettings();
+    renderOptionList();
+    renderSettingsForm();
+    renderSpinStats();
+    renderWheel();
+    renderSummaries();
+    updateControls();
+}
+
+function renderSpinStats() {
+    statsTotalSpins.textContent = String(state.spinStats.totalSpins);
+    resultText.textContent = state.latestWinner || "None yet";
+
+    const entries = Object.entries(state.spinStats.counts);
+    if (entries.length === 0) {
+        statsTopWinner.textContent = "None yet";
+        return;
+    }
+
+    entries.sort((firstEntry, secondEntry) => secondEntry[1] - firstEntry[1] || firstEntry[0].localeCompare(secondEntry[0]));
+    const [topLabel, topCount] = entries[0];
+    statsTopWinner.textContent = `${topLabel} (${topCount})`;
+}
+
+function resetSpinStats() {
+    state.spinStats = createEmptySpinStats();
+}
+
+function syncDerivedWheelData() {
+    const validOptions = state.options
+        .map((option) => sanitizeOption(option, option.id))
+        .filter(Boolean);
+
+    state.options = validOptions;
+    state.totalWeight = validOptions.reduce((sum, option) => sum + option.weight, 0);
+
+    let currentAngle = 0;
+    state.slices = validOptions.map((option, index) => {
+        const startAngle = currentAngle;
+        const sliceAngle = (option.weight / state.totalWeight) * FULL_TURN;
+        const endAngle = index === validOptions.length - 1 ? FULL_TURN : startAngle + sliceAngle;
+        currentAngle = endAngle;
+
+        return {
+            optionId: option.id,
+            label: option.label,
+            weight: option.weight,
+            index,
+            color: SLICE_COLORS[index % SLICE_COLORS.length],
+            startAngle,
+            endAngle,
+            midAngle: startAngle + ((endAngle - startAngle) / 2)
+        };
+    });
+}
+
+function renderSummaries() {
+    const topOption = state.options.reduce((currentTop, option) => {
+        if (!currentTop || option.weight > currentTop.weight) {
+            return option;
+        }
+
+        return currentTop;
+    }, null);
+
+    configSummaryText.textContent = state.options.length > 0
+        ? `${state.options.length} labels loaded with total weight ${formatWeight(state.totalWeight)}.${topOption ? ` Heaviest: ${topOption.label} (${formatWeight(topOption.weight)}).` : ""}`
+        : "No labels configured yet.";
+    settingsSummaryText.textContent = `Charge boost ${formatWeight(state.settings.maxChargeBoost)}, friction floor ${formatWeight(state.settings.lowSpeedFrictionFloor)}, stop threshold ${formatWeight(state.settings.stopVelocityThreshold)}.`;
+}
+
+function renderOptionList() {
+    optionList.innerHTML = "";
+
+    state.options.forEach((option) => {
+        const row = document.createElement("div");
+        row.className = "option-row";
+        row.dataset.optionId = String(option.id);
+
+        const labelInput = document.createElement("input");
+        labelInput.type = "text";
+        labelInput.maxLength = 40;
+        labelInput.value = option.label;
+        labelInput.setAttribute("aria-label", "Option label");
+        labelInput.dataset.role = "label";
+        labelInput.disabled = state.isSpinning;
+
+        const weightInput = document.createElement("input");
+        weightInput.type = "number";
+        weightInput.min = "0.01";
+        weightInput.step = "any";
+        weightInput.value = String(option.weight);
+        weightInput.setAttribute("aria-label", `Weight for ${option.label}`);
+        weightInput.dataset.role = "weight";
+        weightInput.disabled = state.isSpinning;
+
+        const removeButton = document.createElement("button");
+        removeButton.type = "button";
+        removeButton.className = "button remove-button";
+        removeButton.dataset.action = "remove";
+        removeButton.setAttribute("aria-label", `Remove ${option.label}`);
+        removeButton.textContent = "×";
+        removeButton.disabled = state.isSpinning;
+
+        row.append(labelInput, weightInput, removeButton);
+        optionList.append(row);
+    });
+
+    emptyState.hidden = state.options.length !== 0;
+    sliceSummary.textContent = state.slices.length > 0
+        ? `${state.options.length} options • total weight ${formatWeight(state.totalWeight)}`
+        : "0 options • total weight 0";
+}
+
+function renderSettingsForm() {
+    settingsForm.elements.maxChargeMs.value = formatWeight(state.settings.maxChargeMs);
+    settingsForm.elements.maxChargeBoost.value = formatWeight(state.settings.maxChargeBoost);
+    settingsForm.elements.minBaseVelocity.value = formatWeight(state.settings.minBaseVelocity);
+    settingsForm.elements.baseVelocityRange.value = formatWeight(state.settings.baseVelocityRange);
+    settingsForm.elements.minBaseDeceleration.value = formatWeight(state.settings.minBaseDeceleration);
+    settingsForm.elements.baseDecelerationRange.value = formatWeight(state.settings.baseDecelerationRange);
+    settingsForm.elements.lowSpeedFrictionFloor.value = formatWeight(state.settings.lowSpeedFrictionFloor);
+    settingsForm.elements.lowSpeedFrictionExponent.value = formatWeight(state.settings.lowSpeedFrictionExponent);
+    settingsForm.elements.stopVelocityThreshold.value = formatWeight(state.settings.stopVelocityThreshold);
+}
+
+function updateControls() {
+    const hasSlices = state.slices.length > 0;
+    spinButton.disabled = !hasSlices || state.isSpinning;
+    wheelTrigger.classList.toggle("can-spin", hasSlices && !state.isSpinning);
+    wheelTrigger.setAttribute("aria-disabled", String(!hasSlices || state.isSpinning));
+    spinButton.classList.toggle("charging", state.isCharging && state.chargeSource === spinButton);
+    wheelTrigger.classList.toggle("charging", state.isCharging && state.chargeSource === wheelTrigger);
+    openOptionsDialogButton.disabled = state.isSpinning;
+    openSettingsDialogButton.disabled = state.isSpinning;
+    clearOptionsButton.disabled = state.options.length === 0 || state.isSpinning;
+    resetSampleButton.disabled = state.isSpinning;
+    resetSettingsButton.disabled = state.isSpinning;
+    optionLabelInput.disabled = state.isSpinning;
+    optionWeightInput.disabled = state.isSpinning;
+    addOptionSubmitButton.disabled = state.isSpinning;
+    settingsForm.querySelectorAll("input").forEach((element) => {
+        element.disabled = state.isSpinning;
+    });
+    optionList.querySelectorAll("input, button").forEach((element) => {
+        element.disabled = state.isSpinning;
+    });
+
+    if (state.isSpinning) {
+        statusText.textContent = "Spinning...";
+        return;
+    }
+
+    if (state.isCharging) {
+        statusText.textContent = `Charging spin energy: ${Math.round(state.chargeLevel * 100)}%`;
+        return;
+    }
+
+    if (!hasSlices) {
+        statusText.textContent = "Add at least one valid option to enable spinning.";
+        return;
+    }
+
+    if (state.latestWinner) {
+        statusText.textContent = `Winner: ${state.latestWinner}`;
+        return;
+    }
+
+    statusText.textContent = `${state.slices.length} slices ready. Each weight value scales its slice size proportionally.`;
+}
+
+function renderWheel() {
+    const width = canvas.width;
+    const height = canvas.height;
+    const radius = Math.min(width, height) * 0.44;
+    const centerX = width / 2;
+    const centerY = height / 2;
+
+    context.clearRect(0, 0, width, height);
+
+    context.save();
+    context.translate(centerX, centerY);
+    context.rotate(state.currentRotation);
+
+    if (state.slices.length === 0) {
+        drawEmptyWheel(radius);
+        context.restore();
+        drawCenterHub(centerX, centerY, radius);
+        drawOuterRing(centerX, centerY, radius);
+        return;
+    }
+
+    state.slices.forEach((slice) => {
+        const isHighlighted = state.highlightedSliceIndex === slice.index && state.blinkVisible;
+        context.beginPath();
+        context.moveTo(0, 0);
+        context.arc(0, 0, radius, slice.startAngle, slice.endAngle);
+        context.closePath();
+        context.fillStyle = getSliceFillColor(slice.color, isHighlighted);
+        context.fill();
+        context.lineWidth = isHighlighted ? 6 : 3;
+        context.strokeStyle = isHighlighted ? "rgba(255, 247, 196, 1)" : "rgba(255, 248, 232, 0.9)";
+        if (isHighlighted) {
+            context.shadowColor = "rgba(255, 245, 171, 0.95)";
+            context.shadowBlur = 26;
+        }
+        context.stroke();
+        context.shadowBlur = 0;
+
+        drawSliceLabel(slice, radius);
+    });
+
+    context.restore();
+    drawCenterHub(centerX, centerY, radius);
+    drawOuterRing(centerX, centerY, radius);
+}
+
+function drawEmptyWheel(radius) {
+    context.beginPath();
+    context.arc(0, 0, radius, 0, FULL_TURN);
+    context.fillStyle = "rgba(31, 27, 23, 0.08)";
+    context.fill();
+
+    context.lineWidth = 3;
+    context.strokeStyle = "rgba(71, 58, 39, 0.18)";
+    context.stroke();
+
+    context.fillStyle = "#6a5d4a";
+    context.textAlign = "center";
+    context.textBaseline = "middle";
+    context.font = "600 24px Segoe UI";
+    context.fillText("No options yet", 0, 0);
+}
+
+function drawSliceLabel(slice, radius) {
+    const labelAngle = slice.midAngle;
+    const labelRadius = radius * 0.69;
+    const segmentAngle = slice.endAngle - slice.startAngle;
+    const fontSize = Math.max(12, Math.min(24, 11 + (segmentAngle * 30)));
+    const maxLines = Math.max(1, Math.min(3, Math.round(segmentAngle / 0.7) + 1));
+
+    context.save();
+    context.rotate(labelAngle);
+    context.translate(labelRadius, 0);
+    context.fillStyle = "rgba(255, 251, 243, 0.96)";
+    context.textAlign = "center";
+    context.textBaseline = "middle";
+    context.font = `700 ${fontSize}px Segoe UI`;
+
+    const maxWidth = radius * 0.44;
+    const lineHeight = fontSize * 0.92;
+    const lines = wrapLabelToLines(slice.label, maxWidth, maxLines);
+    const startY = -((lines.length - 1) * lineHeight) / 2;
+
+    lines.forEach((line, index) => {
+        context.fillText(line, 0, startY + (index * lineHeight), maxWidth);
+    });
+
+    context.restore();
+}
+
+function getSliceFillColor(baseColor, isHighlighted) {
+    if (!isHighlighted) {
+        return baseColor;
+    }
+
+    return mixHexColors(baseColor, "#fff6b0", 0.48);
+}
+
+function mixHexColors(firstHex, secondHex, mixAmount) {
+    const first = parseHexColor(firstHex);
+    const second = parseHexColor(secondHex);
+    const amount = Math.max(0, Math.min(1, mixAmount));
+    const mixed = [0, 1, 2].map((index) => Math.round(first[index] + ((second[index] - first[index]) * amount)));
+
+    return `rgb(${mixed[0]}, ${mixed[1]}, ${mixed[2]})`;
+}
+
+function parseHexColor(hex) {
+    const normalized = hex.replace("#", "");
+    return [0, 2, 4].map((start) => Number.parseInt(normalized.slice(start, start + 2), 16));
+}
+
+function wrapLabelToLines(label, maxWidth, maxLines) {
+    const words = label.trim().split(/\s+/).filter(Boolean);
+
+    if (words.length === 0) {
+        return [""];
+    }
+
+    const lines = [];
+    let currentLine = "";
+
+    for (const word of words) {
+        const normalizedWord = fitTokenToWidth(word, maxWidth);
+        const candidate = currentLine ? `${currentLine} ${normalizedWord}` : normalizedWord;
+
+        if (context.measureText(candidate).width <= maxWidth) {
+            currentLine = candidate;
+            continue;
+        }
+
+        if (currentLine) {
+            lines.push(currentLine);
+        }
+
+        currentLine = normalizedWord;
+
+        if (lines.length === maxLines - 1) {
+            break;
+        }
+    }
+
+    if (currentLine) {
+        lines.push(currentLine);
+    }
+
+    if (lines.length > maxLines) {
+        lines.length = maxLines;
+    }
+
+    const consumedWords = lines.join(" ").trim().split(/\s+/).filter(Boolean).length;
+    if (consumedWords < words.length) {
+        lines[lines.length - 1] = trimLineWithEllipsis(lines[lines.length - 1], maxWidth);
+    }
+
+    return lines;
+}
+
+function fitTokenToWidth(token, maxWidth) {
+    if (context.measureText(token).width <= maxWidth) {
+        return token;
+    }
+
+    let trimmed = token;
+    while (trimmed.length > 1 && context.measureText(`${trimmed}${LABEL_ELLIPSIS}`).width > maxWidth) {
+        trimmed = trimmed.slice(0, -1);
+    }
+
+    return `${trimmed}${LABEL_ELLIPSIS}`;
+}
+
+function trimLineWithEllipsis(line, maxWidth) {
+    if (context.measureText(`${line}${LABEL_ELLIPSIS}`).width <= maxWidth) {
+        return `${line}${LABEL_ELLIPSIS}`;
+    }
+
+    let trimmed = line;
+    while (trimmed.length > 1 && context.measureText(`${trimmed}${LABEL_ELLIPSIS}`).width > maxWidth) {
+        trimmed = trimmed.slice(0, -1).trimEnd();
+    }
+
+    return `${trimmed}${LABEL_ELLIPSIS}`;
+}
+
+function drawOuterRing(centerX, centerY, radius) {
+    context.save();
+    context.beginPath();
+    context.arc(centerX, centerY, radius + 4, 0, FULL_TURN);
+    context.strokeStyle = "rgba(114, 82, 39, 0.38)";
+    context.lineWidth = 8;
+    context.stroke();
+
+    context.beginPath();
+    context.arc(centerX, centerY, radius + 16, 0, FULL_TURN);
+    context.strokeStyle = "rgba(255, 251, 240, 0.55)";
+    context.lineWidth = 4;
+    context.stroke();
+    context.restore();
+}
+
+function drawCenterHub(centerX, centerY, radius) {
+    const hubRadius = radius * 0.205;
+    const meterRadius = hubRadius * 0.82;
+    const centerCapRadius = hubRadius * 0.34;
+    const chargeLevel = clamp(state.chargeLevel, 0, 1);
+    const pulseScale = state.isCharging ? 1 + (Math.sin(performance.now() / 140) * 0.035 * chargeLevel) : 1;
+
+    context.save();
+    context.translate(centerX, centerY);
+    context.scale(pulseScale, pulseScale);
+
+    context.beginPath();
+    context.arc(0, 0, meterRadius, 0, FULL_TURN);
+    context.fillStyle = "rgba(255, 250, 241, 0.95)";
+    context.fill();
+
+    if (chargeLevel > 0) {
+        context.beginPath();
+        context.moveTo(0, 0);
+        context.arc(0, 0, meterRadius, POINTER_ANGLE, POINTER_ANGLE + (FULL_TURN * chargeLevel), false);
+        context.closePath();
+        context.fillStyle = mixHexColors("#f0b15d", "#cc5f37", chargeLevel * 0.55);
+        context.fill();
+    }
+
+    context.beginPath();
+    context.arc(0, 0, centerCapRadius, 0, FULL_TURN);
+    context.fillStyle = state.isCharging ? "rgba(255, 248, 232, 0.92)" : "rgba(231, 223, 209, 0.94)";
+    context.fill();
+
+    context.restore();
+}
+
+function handleSpin(spinOptions = {}) {
+    if (state.isSpinning || state.slices.length === 0) {
+        return;
+    }
+
+    if (state.isCharging) {
+        finishChargeBuild(false);
+    }
+
+    state.isSpinning = true;
+    state.spinId += 1;
+    clearWinnerHighlight();
+
+    const spinToken = state.spinId;
+    const startRotation = state.currentRotation;
+    const launchBoost = Math.max(0, spinOptions.launchBoost || 0);
+    const initialAngularVelocity = state.settings.minBaseVelocity + (Math.random() * state.settings.baseVelocityRange) + launchBoost;
+    const baseAngularDeceleration = state.settings.minBaseDeceleration + (Math.random() * state.settings.baseDecelerationRange) + (launchBoost * 0.045);
+    let currentAngularVelocity = initialAngularVelocity;
+    let travelledAngle = 0;
+    let previousTimestamp = performance.now();
+
+    updateControls();
+
+    const animate = (timestamp) => {
+        if (spinToken !== state.spinId) {
+            return;
+        }
+
+        const deltaSeconds = Math.min((timestamp - previousTimestamp) / 1000, 0.05);
+        previousTimestamp = timestamp;
+
+        const speedRatio = Math.max(0, Math.min(currentAngularVelocity / initialAngularVelocity, 1));
+        const frictionFactor = state.settings.lowSpeedFrictionFloor
+            + ((1 - state.settings.lowSpeedFrictionFloor) * Math.pow(speedRatio, state.settings.lowSpeedFrictionExponent));
+        const angularDeceleration = baseAngularDeceleration * frictionFactor;
+
+        travelledAngle += currentAngularVelocity * deltaSeconds;
+        currentAngularVelocity = Math.max(0, currentAngularVelocity - (angularDeceleration * deltaSeconds));
+        state.currentRotation = startRotation + travelledAngle;
+        renderWheel();
+
+        if (currentAngularVelocity > state.settings.stopVelocityThreshold) {
+            requestAnimationFrame(animate);
+            return;
+        }
+
+        state.currentRotation = normalizeRotation(startRotation + travelledAngle);
+        state.isSpinning = false;
+        const winningSlice = getSliceAtPointer();
+        state.latestWinner = winningSlice.label;
+        state.spinStats.totalSpins += 1;
+        state.spinStats.counts[winningSlice.label] = (state.spinStats.counts[winningSlice.label] || 0) + 1;
+        state.highlightedSliceIndex = winningSlice.index;
+        renderSpinStats();
+        renderWheel();
+        updateControls();
+        startWinnerBlink(spinToken, winningSlice.index);
+    };
+
+    requestAnimationFrame(animate);
+}
+
+function clearWinnerHighlight() {
+    state.blinkToken += 1;
+    state.highlightedSliceIndex = -1;
+    state.blinkVisible = false;
+}
+
+function startWinnerBlink(spinToken, sliceIndex) {
+    const blinkToken = ++state.blinkToken;
+    const blinkCount = 6;
+    const blinkDuration = 180;
+
+    const runBlink = (step) => {
+        if (blinkToken !== state.blinkToken || spinToken !== state.spinId) {
+            return;
+        }
+
+        if (step >= blinkCount * 2) {
+            state.highlightedSliceIndex = sliceIndex;
+            state.blinkVisible = true;
+            renderWheel();
+            return;
+        }
+
+        state.highlightedSliceIndex = sliceIndex;
+        state.blinkVisible = step % 2 === 0;
+        renderWheel();
+        window.setTimeout(() => runBlink(step + 1), blinkDuration);
+    };
+
+    runBlink(0);
+}
+
+function getSliceAtPointer() {
+    const pointerAngle = normalizeRotation(POINTER_ANGLE - state.currentRotation);
+    return state.slices.find((slice) => pointerAngle >= slice.startAngle && pointerAngle < slice.endAngle)
+        || state.slices[state.slices.length - 1];
+}
+
+function formatWeight(weight) {
+    return Number.isInteger(weight) ? String(weight) : weight.toFixed(2).replace(/\.0+$/, "").replace(/(\.\d*[1-9])0+$/, "$1");
+}
+
+function normalizeRotation(angle) {
+    return ((angle % FULL_TURN) + FULL_TURN) % FULL_TURN;
+}
+
+function easeOutQuadratic(value) {
+    const clampedValue = Math.max(0, Math.min(value, 1));
+    return 1 - ((1 - clampedValue) * (1 - clampedValue));
+}
+
+</script>
+</body>
+</html>
